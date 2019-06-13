@@ -21,9 +21,10 @@ bitbar_header = ['BB', '---']
 # Create an API token here: https://id.atlassian.com/manage/api-tokens
 # Use your email address as the username
 # Use the token value as the password
-USER="<jira_user>"
+USER="<jira_user>@email"
 PASSW="<jira_api_token>"
 SERVER="<jira_server>"
+assignee="assignee="+"<username>"
 
 def get_status(status):
     # builders_url = url + 'api/v2/builders'
@@ -128,7 +129,7 @@ def main():
 
   jira = connect_jira(log, SERVER, USER, PASSW)
   # Find all issues reported by the admin
-  issues = jira.search_issues('assignee=aron.benkoczy')
+  issues = jira.search_issues(assignee)
    #print(issues);
   get_in_progress_item(issues)
   # get_status(issue)
