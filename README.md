@@ -34,4 +34,4 @@ assignee="assignee="+"foo.foo@mail.com"
 
 ## TODO: 
 
-* create side the open ticket in different sprint
+* if there is any changes then show it somehow

@@ -40,20 +40,29 @@ def connect_jira(log, jira_server, jira_user, jira_password):
 # Get bitbar status
 def get_in_progress_item(issues):
   myIssues=[]
+  mySprints={}
 
   # filter out Closed or Blocked items
   for issue in issues:
     if (str(issue.fields.status) not in ('Closed', 'Blocked')):
       myIssues.append(issue);
 
+      if(issue.fields.customfield_10007):
+        fieldIndex = 0
+        if(len(issue.fields.customfield_10007) > 1):
+          fieldIndex = 1
+        # store sprint name
+        sprintName = re.search('name=(.+?),', str(issue.fields.customfield_10007[fieldIndex])).group(1)
+        if(sprintName is not ''):
+          mySprints[sprintName] = []
+
   myIssues.sort(key=lambda x: x.fields.updated, reverse=True)
   recent = 'Recent(' + str(TOPRECENT) + '):'
   bitbar_header = ['BB', '---', recent, '---']
 
+  # TOP RECENT
   i = 0
   for element in myIssues:
-    if(i >= TOPRECENT):
-      break
     status=""
     sprintName = ''
     if(element.fields.customfield_10007):
@@ -65,16 +74,33 @@ def get_in_progress_item(issues):
       except AttributeError:
         sprintName = ''
     if(sprintName):
-      status = status + sprintName + " # "
+      status = status + sprintName + " # " + str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary) + " | href=https://cae-hc.atlassian.net/browse/" + str(element.key)
+      mySprints[sprintName].append("%s" % (status))
+    else:
+      status = status + str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary) + " | href=https://cae-hc.atlassian.net/browse/" + str(element.key)
 
-    status = status + str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary) + " | href=https://cae-hc.atlassian.net/browse/" + str(element.key)
+    # just show top TOPRECENT tickets
+    if(i < TOPRECENT):
+      bitbar_header.append("%s" % (status))
 
-    bitbar_header.append("%s" % (status))
     if (str(element.fields.status) not in ('Open')):
       status = str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
       bitbar_header[0]= str("%s" % (status))
 
     i = i + 1  
+  
+  # Sprints  
+  bitbar_header.append("%s" % "---")
+  sprintHeader="Sprints: ("+str(len(mySprints))+")"
+  bitbar_header.append("%s" % (sprintHeader))
+  bitbar_header.append("%s" % "---")
+  for sprint in mySprints:
+    bitbar_header.append("%s" % (sprint))
+    # create submenus
+    subElement = '\n--'.join(mySprints[sprint])
+    subElement = "--" + subElement
+    bitbar_header.append("%s" % subElement)
+ 
   print ('\n'.join(bitbar_header))
 
 def main():
