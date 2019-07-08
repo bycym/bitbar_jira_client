@@ -85,7 +85,9 @@ def get_in_progress_item(issues):
 
     if (str(element.fields.status) not in ('Open')):
       status = str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
-      bitbar_header[0]= str("%s" % (status))
+      #bitbar_header[0]= bitbar_header[0] + str("%s" % (status)) + '\n'
+      if(bitbar_header[0] is ''):
+        bitbar_header[0] = str("%s" % (status))
 
     i = i + 1  
   
@@ -101,6 +103,9 @@ def get_in_progress_item(issues):
     subElement = "--" + subElement
     bitbar_header.append("%s" % subElement)
  
+  if(bitbar_header[0] is ''):
+    bitbar_header[0] = '(-) :: No "In progress" ticket'
+    
   print ('\n'.join(bitbar_header))
 
 def main():
