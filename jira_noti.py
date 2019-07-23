@@ -24,6 +24,7 @@ PASSW="<jira_api_token>"
 SERVER="<jira_server>"
 assignee="assignee="+"<username>"
 TOPRECENT=10
+STATUSLENGTH=50
 
 # Defines a function for connecting to Jira
 def connect_jira(log, jira_server, jira_user, jira_password):
@@ -86,6 +87,8 @@ def get_in_progress_item(issues):
     if (str(element.fields.status) not in ('Open')):
       status = str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
       #bitbar_header[0]= bitbar_header[0] + str("%s" % (status)) + '\n'
+      if(len(status) > STATUSLENGTH):
+        status = status[0:STATUSLENGTH] + '..'
       if(bitbar_header[0] is ''):
         bitbar_header[0] = str("%s" % (status))
 
@@ -114,5 +117,8 @@ def main():
   issues = jira.search_issues(assignee)
   if(len(issues) > 0):
     get_in_progress_item(issues)
+  else: 
+    bitbar_header = ['No jira issue', '---', 'Connection error?']
+    print ('\n'.join(bitbar_header))
 
 main()
