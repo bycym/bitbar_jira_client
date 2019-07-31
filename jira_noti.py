@@ -58,8 +58,9 @@ def get_in_progress_item(issues):
           mySprints[sprintName] = []
 
   myIssues.sort(key=lambda x: x.fields.updated, reverse=True)
+  dashboard = 'Dashboard | href=' + SERVER + '/secure/Dashboard.jspa'
   recent = 'Recent(' + str(TOPRECENT) + '):'
-  bitbar_header = ['BB', '---', recent, '---']
+  bitbar_header = ['', '---', dashboard, '---', recent, '---']
 
   # TOP RECENT
   i = 0
