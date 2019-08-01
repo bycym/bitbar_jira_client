@@ -83,12 +83,18 @@ def get_in_progress_item(issues):
     # <ID>(<status>) :: <Title>
     if(sprintName):
       status = status + sprintName + " # " + str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
-      status = status[0:TICKETLENGTH]
+      if(len(status) > TICKETLENGTH):
+        status = status[0:TICKETLENGTH] + '..'
+      else:
+        status = status[0:TICKETLENGTH]
       status = status + " | href=https://cae-hc.atlassian.net/browse/" + str(element.key)
       mySprints[sprintName].append("%s" % (status))
     else:
       status = status + str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
-      status = status[0:TICKETLENGTH]
+      if(len(status) > TICKETLENGTH):
+        status = status[0:TICKETLENGTH] + '..'
+      else:
+        status = status[0:TICKETLENGTH]
       status = status + " | href=https://cae-hc.atlassian.net/browse/" + str(element.key)
 
     # just show top TOPRECENT tickets
