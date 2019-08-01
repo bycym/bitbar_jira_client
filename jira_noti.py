@@ -24,7 +24,10 @@ PASSW="<jira_api_token>"
 SERVER="<jira_server>"
 assignee="assignee="+"<username>"
 TOPRECENT=10
+# Adjust title length of a ticket in status
 STATUSLENGTH=50
+# Adjust title length of a ticket in dropdown menu
+TICKETLENGTH=80
 
 # Defines a function for connecting to Jira
 def connect_jira(log, jira_server, jira_user, jira_password):
@@ -75,11 +78,18 @@ def get_in_progress_item(issues):
         sprintName = re.search('name=(.+?),', str(element.fields.customfield_10007[fieldIndex])).group(1)
       except AttributeError:
         sprintName = ''
+
+    # Create ticket with sprint name if it exsist
+    # <ID>(<status>) :: <Title>
     if(sprintName):
-      status = status + sprintName + " # " + str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary) + " | href=https://cae-hc.atlassian.net/browse/" + str(element.key)
+      status = status + sprintName + " # " + str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
+      status = status[0:TICKETLENGTH]
+      status = status + " | href=https://cae-hc.atlassian.net/browse/" + str(element.key)
       mySprints[sprintName].append("%s" % (status))
     else:
-      status = status + str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary) + " | href=https://cae-hc.atlassian.net/browse/" + str(element.key)
+      status = status + str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
+      status = status[0:TICKETLENGTH]
+      status = status + " | href=https://cae-hc.atlassian.net/browse/" + str(element.key)
 
     # just show top TOPRECENT tickets
     if(i < TOPRECENT):
@@ -87,7 +97,6 @@ def get_in_progress_item(issues):
 
     if (str(element.fields.status) not in ('Open')):
       status = str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
-      #bitbar_header[0]= bitbar_header[0] + str("%s" % (status)) + '\n'
       if(len(status) > STATUSLENGTH):
         status = status[0:STATUSLENGTH] + '..'
       if(bitbar_header[0] is ''):
@@ -101,7 +110,9 @@ def get_in_progress_item(issues):
   bitbar_header.append("%s" % (sprintHeader))
   bitbar_header.append("%s" % "---")
   for sprint in mySprints:
-    bitbar_header.append("%s" % (sprint))
+    # add sprint string [sprintname](length)
+    sprintString = sprint + "(" + str(len(mySprints[sprint])) + ")"
+    bitbar_header.append("%s" % (sprintString))
     # create submenus
     subElement = '\n--'.join(mySprints[sprint])
     subElement = "--" + subElement
@@ -109,16 +120,20 @@ def get_in_progress_item(issues):
  
   if(bitbar_header[0] is ''):
     bitbar_header[0] = '(-) :: No "In progress" ticket'
-    
+
   print ('\n'.join(bitbar_header))
 
+
 def main():
+  # create logger
+  # logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+  # logging.warning('This will get logged to a file')
   log = logging.getLogger(__name__)
   jira = connect_jira(log, SERVER, USER, PASSW)
   issues = jira.search_issues(assignee)
   if(len(issues) > 0):
     get_in_progress_item(issues)
-  else: 
+  else:
     bitbar_header = ['No jira issue', '---', 'Connection error?']
     print ('\n'.join(bitbar_header))
 
