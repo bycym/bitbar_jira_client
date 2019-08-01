@@ -28,6 +28,23 @@ TOPRECENT=10
 STATUSLENGTH=50
 # Adjust title length of a ticket in dropdown menu
 TICKETLENGTH=80
+COLORING=True
+
+def priorityColorCoding(priority):
+  priorityColor = " color="
+  if(str(priority) == "Blocker"):
+    priorityColor = priorityColor + "#cc3300"
+  elif (str(priority) == "Critical"):
+    priorityColor = priorityColor + "#ff9999"
+  elif (str(priority) == "Major"):
+    priorityColor = priorityColor + "#ff0000"
+  elif (str(priority) == "Minor"):
+    priorityColor = priorityColor + "#808080"
+  elif (str(priority) == "Trivial"):
+    priorityColor = priorityColor + "#808080"
+  else:
+    priorityColor = ""
+  return priorityColor
 
 # Defines a function for connecting to Jira
 def connect_jira(log, jira_server, jira_user, jira_password):
@@ -81,21 +98,20 @@ def get_in_progress_item(issues):
 
     # Create ticket with sprint name if it exsist
     # <ID>(<status>) :: <Title>
-    if(sprintName):
-      status = status + sprintName + " # " + str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
-      if(len(status) > TICKETLENGTH):
-        status = status[0:TICKETLENGTH] + '..'
-      else:
-        status = status[0:TICKETLENGTH]
-      status = status + " | href=https://cae-hc.atlassian.net/browse/" + str(element.key)
-      mySprints[sprintName].append("%s" % (status))
+    status = status + str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
+    if(len(status) > TICKETLENGTH):
+      status = status[0:TICKETLENGTH] + '..'
     else:
-      status = status + str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
-      if(len(status) > TICKETLENGTH):
-        status = status[0:TICKETLENGTH] + '..'
-      else:
-        status = status[0:TICKETLENGTH]
-      status = status + " | href=https://cae-hc.atlassian.net/browse/" + str(element.key)
+      status = status[0:TICKETLENGTH]
+    status = status + " | href=https://cae-hc.atlassian.net/browse/" + str(element.key)
+    # coloring
+    if(COLORING):
+      status = status + str(priorityColorCoding(element.fields.priority))
+
+    # adding ticket to sprint
+    if(sprintName):
+      status = sprintName + " # " + status
+      mySprints[sprintName].append("%s" % (status))
 
     # just show top TOPRECENT tickets
     if(i < TOPRECENT):
