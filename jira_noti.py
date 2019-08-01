@@ -29,6 +29,7 @@ STATUSLENGTH=50
 # Adjust title length of a ticket in dropdown menu
 TICKETLENGTH=80
 COLORING=True
+NONSPRINT='[Non sprint]'
 
 def priorityColorCoding(priority):
   priorityColor = " color="
@@ -62,6 +63,7 @@ def connect_jira(log, jira_server, jira_user, jira_password):
 def get_in_progress_item(issues):
   myIssues=[]
   mySprints={}
+  mySprints[NONSPRINT] = []
 
   # filter out Closed or Blocked items
   for issue in issues:
@@ -112,6 +114,8 @@ def get_in_progress_item(issues):
     if(sprintName):
       status = sprintName + " # " + status
       mySprints[sprintName].append("%s" % (status))
+    else:
+      mySprints[NONSPRINT].append("%s" % (status))
 
     # just show top TOPRECENT tickets
     if(i < TOPRECENT):
