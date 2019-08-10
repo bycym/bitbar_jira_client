@@ -121,7 +121,7 @@ def get_in_progress_item(issues):
     if(i < TOPRECENT):
       bitbar_header.append("%s" % (status))
 
-    if (str(element.fields.status) not in ('Open')):
+    if (str(element.fields.status) not in ('Open', 'New')):
       status = str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
       if(len(status) > STATUSLENGTH):
         status = status[0:STATUSLENGTH] + '..'
