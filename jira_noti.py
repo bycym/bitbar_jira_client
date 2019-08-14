@@ -31,6 +31,17 @@ TICKETLENGTH=80
 COLORING=True
 NONSPRINT='[Non sprint]'
 
+### CUSTOM SECTION ###
+def add_custom_header(header):
+  ## Custom header link >>>>>
+  # example:
+  # example = '<name of the link> | href=' + SERVER + '<link of board or whatelse on the server>'
+  kanban = 'my kanban board | href=' + SERVER + '/secure/RapidBoard.jspa?rapidView=22'
+  # append to the header
+  header.append("%s" % (kanban))
+  ## <<<<< Custom header link
+
+# color option for the priority
 def priorityColorCoding(priority):
   priorityColor = " color="
   if(str(priority) == "Blocker"):
@@ -46,6 +57,9 @@ def priorityColorCoding(priority):
   else:
     priorityColor = ""
   return priorityColor
+
+### END OF THE CUSTOM SECTION ###
+
 
 # Defines a function for connecting to Jira
 def connect_jira(log, jira_server, jira_user, jira_password):
@@ -64,6 +78,13 @@ def get_in_progress_item(issues):
   myIssues=[]
   mySprints={}
   mySprints[NONSPRINT] = []
+  bitbar_header = ['']
+
+  bitbar_header.append("%s" % ("---"))
+  dashboard = 'Dashboard | href=' + SERVER + '/secure/Dashboard.jspa'
+  bitbar_header.append("%s" % (dashboard))
+
+  add_custom_header(bitbar_header)
 
   # filter out Closed or Blocked items
   for issue in issues:
@@ -80,9 +101,10 @@ def get_in_progress_item(issues):
           mySprints[sprintName] = []
 
   myIssues.sort(key=lambda x: x.fields.updated, reverse=True)
-  dashboard = 'Dashboard | href=' + SERVER + '/secure/Dashboard.jspa'
+  
+  bitbar_header.append("%s" % ("---"))
   recent = 'Recent(' + str(TOPRECENT) + '):'
-  bitbar_header = ['', '---', dashboard, '---', recent, '---']
+  bitbar_header.append("%s" % (recent))
 
   # TOP RECENT
   i = 0
