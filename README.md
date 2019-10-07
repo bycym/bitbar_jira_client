@@ -1,5 +1,6 @@
 # bitbar_jira_client
 
+![bitbar jira client](/jira-noti.png?raw=true "Optional Title")
 
 ```
 pip3 install jira-client
