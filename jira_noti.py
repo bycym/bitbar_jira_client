@@ -36,7 +36,7 @@ def add_custom_header(header):
   ## Custom header link >>>>>
   # example:
   # example = '<name of the link> | href=' + SERVER + '<link of board or whatelse on the server>'
-  kanban = 'my kanban board | href=' + SERVER + '/secure/RapidBoard.jspa?rapidView=22'
+  kanban = 'My board | href=' + SERVER + '/secure/RapidBoard.jspa?rapidView=28'
   # append to the header
   header.append("%s" % (kanban))
   ## <<<<< Custom header link
@@ -80,11 +80,22 @@ def get_in_progress_item(issues):
   mySprints[NONSPRINT] = []
   bitbar_header = ['']
 
+  ###############################################################################
+  ## header rows
+  ####################
+
+  ## drop down started
   bitbar_header.append("%s" % ("---"))
+  ## refer link to the in progress element
+  dashboard = 'LINK_TO_TOP'
+  bitbar_header.append("%s" % (dashboard))
+  ## dashboard link
   dashboard = 'Dashboard | href=' + SERVER + '/secure/Dashboard.jspa'
   bitbar_header.append("%s" % (dashboard))
-
+  ## add more custom link
   add_custom_header(bitbar_header)
+
+  ###############################################################################
 
   # filter out Closed or Blocked items
   for issue in issues:
@@ -106,7 +117,9 @@ def get_in_progress_item(issues):
   recent = 'Recent(' + str(TOPRECENT) + '):'
   bitbar_header.append("%s" % (recent))
 
-  # TOP RECENT
+  ###############################################################################
+  ## TOP RECENT
+  ####################
   i = 0
   for element in myIssues:
     status=""
@@ -144,15 +157,25 @@ def get_in_progress_item(issues):
       bitbar_header.append("%s" % (status))
 
     if (str(element.fields.status) not in ('Open', 'New')):
-      status = str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
-      if(len(status) > STATUSLENGTH):
-        status = status[0:STATUSLENGTH] + '..'
+      top_status_bar = str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
+      if(len(top_status_bar) > STATUSLENGTH):
+        top_status_bar = top_status_bar[0:STATUSLENGTH] + '..'
+
+      ###############################################################################
+      ## header element
+      ####################
       if(bitbar_header[0] is ''):
-        bitbar_header[0] = str("%s" % (status))
+        bitbar_header[0] = str("%s" % (top_status_bar))
+        ## link to that elem
+        bitbar_header[2] = str("%s" % (status))
+      ###############################################################################
 
     i = i + 1  
   
-  # Sprints  
+  ###############################################################################
+  ## SPRINTS
+  ####################
+
   bitbar_header.append("%s" % "---")
   sprintHeader="Sprints: ("+str(len(mySprints))+")"
   bitbar_header.append("%s" % (sprintHeader))
@@ -168,6 +191,9 @@ def get_in_progress_item(issues):
  
   if(bitbar_header[0] is ''):
     bitbar_header[0] = '(-) :: No "In progress" ticket'
+
+
+  ###############################################################################
 
   print ('\n'.join(bitbar_header))
 
