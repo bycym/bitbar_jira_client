@@ -1,8 +1,8 @@
-#!/usr/bin/env -S PATH="${PATH}:/usr/local/bin" PYTHONIOENCODING=UTF-8 python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # <bitbar.title>Jira status</bitbar.title>
-# <bitbar.version>v1.0</bitbar.version>
+# <bitbar.version>v1.3</bitbar.version>
 # <bitbar.author>Aron Benkoczy</bitbar.author>
 # <bitbar.author.github>bycym</bitbar.author.github>
 # <bitbar.desc>Displays Open jira tickets.</bitbar.desc>
@@ -13,6 +13,8 @@ from jira.client import JIRA
 import logging
 import re
 import datetime
+import time
+import os
 
 bitbar_header = ['BB', '---']
 # As some above have stated, using an API token will work (for JIRA Cloud).
@@ -25,11 +27,13 @@ SERVER="<jira_server>"
 assignee="assignee="+"<username>"
 TOPRECENT=10
 # Adjust title length of a ticket in status
-STATUSLENGTH=50
+STATUSLENGTH=40
 # Adjust title length of a ticket in dropdown menu
 TICKETLENGTH=80
 COLORING=True
 NONSPRINT='[Non sprint]'
+CACHE_FILE="jira_noti.cache"
+TIME_OUT=3
 
 ### CUSTOM SECTION ###
 def add_custom_header(header):
@@ -66,7 +70,7 @@ def connect_jira(log, jira_server, jira_user, jira_password):
   try:
     log.info("Connecting to JIRA: %s" % jira_server)
     jira_options = {'server': jira_server}
-    jira = JIRA(options=jira_options, basic_auth=(jira_user, jira_password))
+    jira = JIRA(timeout=TIME_OUT, options=jira_options, basic_auth=(jira_user, jira_password), max_retries=0)
     return jira
 
   except Exception as e:
@@ -108,7 +112,7 @@ def get_in_progress_item(issues):
           fieldIndex = 1
         if (issue.raw['fields']["customfield_10007"] and issue.raw['fields']["customfield_10007"][0]):
           sprintName = re.search('name=(.+?),', str(issue.raw['fields']["customfield_10007"][0])).group(1)
-        if(sprintName is not ''):
+        if(sprintName != ''):
           mySprints[sprintName] = []
 
   myIssues.sort(key=lambda x: x.fields.updated, reverse=True)
@@ -156,7 +160,7 @@ def get_in_progress_item(issues):
     if(i < TOPRECENT):
       bitbar_header.append("%s" % (status))
 
-    if (str(element.fields.status) not in ('Open', 'New')):
+    if (str(element.fields.status) not in ('Open', 'New', 'Code Review', 'Prepare Testing')):
       top_status_bar = str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
       if(len(top_status_bar) > STATUSLENGTH):
         top_status_bar = top_status_bar[0:STATUSLENGTH] + '..'
@@ -164,7 +168,7 @@ def get_in_progress_item(issues):
       ###############################################################################
       ## header element
       ####################
-      if(bitbar_header[0] is ''):
+      if(bitbar_header[0] == ''):
         bitbar_header[0] = str("%s" % (top_status_bar))
         ## link to that elem
         bitbar_header[2] = str("%s" % (status))
@@ -189,26 +193,43 @@ def get_in_progress_item(issues):
     subElement = "--" + subElement
     bitbar_header.append("%s" % subElement)
  
-  if(bitbar_header[0] is ''):
+  if(bitbar_header[0] == ''):
     bitbar_header[0] = '(-) :: No "In progress" ticket'
 
 
   ###############################################################################
-
-  print ('\n'.join(bitbar_header))
+  content = '\n'.join(bitbar_header)
+  print (content)
+  
+  with open(CACHE_FILE, "w+") as f:
+    f.write(content)
+    f.write("\n---\n")
+    f.write("cached\n")
+    f.write(time.ctime())
+    f.close()
 
 
 def main():
-  # create logger
-  # logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
-  # logging.warning('This will get logged to a file')
+
   log = logging.getLogger(__name__)
   jira = connect_jira(log, SERVER, USER, PASSW)
-  issues = jira.search_issues(assignee)
-  if(len(issues) > 0):
-    get_in_progress_item(issues)
+  if ( jira is not None):
+    issues = jira.search_issues(assignee)
+    if(len(issues) > 0):
+      get_in_progress_item(issues)
+    else:
+      bitbar_header = ['No jira issue', '---', 'Connection error?']
+      print ('\n'.join(bitbar_header))
   else:
-    bitbar_header = ['No jira issue', '---', 'Connection error?']
-    print ('\n'.join(bitbar_header))
+    
+    stored_issues=""
+    with open(CACHE_FILE, "r") as f:
+      stored_issues = f.read()
+    if(len(stored_issues) > 0):
+      print(stored_issues)
+    else:
+      bitbar_header = ['No jira issue (no cache)', '---', 'Connection error!!']
+      print ('\n'.join(bitbar_header))
+   
 
 main()
