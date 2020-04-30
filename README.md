@@ -1,6 +1,10 @@
 # bitbar_jira_client
 
+Working on macos with [bitbar](https://github.com/matryer/bitbar)
 ![bitbar jira client](/jira-noti.png?raw=true "Optional Title")
+
+Working on linux (popos) with [argos](https://github.com/p-e-w/argos)
+![bitbar jira client](/jira-noti_argos.png?raw=true "Optional Title")
 
 ```
 pip3 install jira-client
@@ -32,7 +36,3 @@ if assignee doesn't work then try it with emai:
 ```py
 assignee="assignee="+"foo.foo@mail.com"
 ```
-
-## TODO: 
-
-* if there is any changes then show it somehow
