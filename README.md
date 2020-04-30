@@ -1,9 +1,11 @@
 # bitbar_jira_client
 
 Working on macos with [bitbar](https://github.com/matryer/bitbar)
+
 ![bitbar jira client](/jira-noti.png?raw=true "Optional Title")
 
 Working on linux (popos) with [argos](https://github.com/p-e-w/argos)
+
 ![bitbar jira client](/jira-noti_argos.png?raw=true "Optional Title")
 
 ```
