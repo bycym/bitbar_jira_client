@@ -145,7 +145,7 @@ def get_in_progress_item(issues):
       status = status[0:TICKETLENGTH] + '..'
     else:
       status = status[0:TICKETLENGTH]
-    status = status + " | href=https://cae-hc.atlassian.net/browse/" + str(element.key)
+    status = status + " | href=" + server + "/browse/" + str(element.key)
     # coloring
     if(COLORING):
       status = status + str(priorityColorCoding(element.fields.priority))
@@ -225,7 +225,6 @@ def getParsedIssues():
       log = ('\n'.join(bitbar_header))
 
     issues2 = jira.search_issues('assignee was in (currentuser()) and updatedDate < endOfDay() AND updatedDate > -1d ORDER BY updatedDate DESC, created ASC',fields=['key', 'project', 'timeSpent', 'worklog'], maxResults=30)
-    # issues2 = jira.search_issues('assignee was in (currentuser()) and updatedDate >= startOfDay() and updatedDate < endOfDay() ORDER BY updatedDate DESC, created ASC',fields=['key', 'project', 'timeSpent', 'worklog'], maxResults=30)
     if(len(issues2) > 0):
       log = log + get_time_spent_by_day(issues2)
   return log
@@ -242,14 +241,10 @@ def get_time_spent_by_day(issues):
   yesterday_time_spent.append("%s" % ('Yesterday logged:'))
   yesterday_time_spent.append("%s" % ('--'))
   for issue in issues:
-    # print(issue)
     log_entry_count = len(issue.fields.worklog.worklogs)
-    # print( issue.key, issue.fields.project, issue.fields.worklog.worklogs[i].timeSpent, 
-    #     issue.fields.worklog.worklogs[i].updated, issue.fields.worklog.worklogs[i].updateAuthor)
     for i in range(log_entry_count):
       issue_strd = issue.fields.worklog.worklogs[i].updated
       issue_strd = issue_strd[0:issue_strd.find("+")]
-      # print(issue_strd)
       issue_d = datetime.datetime.strptime(issue_strd, '%Y-%m-%dT%H:%M:%S.%f')
 
       comment=''
@@ -261,10 +256,8 @@ def get_time_spent_by_day(issues):
         status = status[0:TICKETLENGTH] + '..'
       else:
         status = status[0:TICKETLENGTH]
-      status = status + " | href=https://cae-hc.atlassian.net/browse/" + str(issue.key)
+      status = status + " | href=" + server + "/browse/" + str(element.key)
       if(issue_d.day == datetime.date.today().day):
-        # print( issue.key, issue.fields.project, issue.fields.worklog.worklogs[i].timeSpent, 
-        #   issue.fields.worklog.worklogs[i].updated, issue.fields.worklog.worklogs[i].updateAuthor)
         today_time_spent.append("%s" % (status))
 
       yesterday_d = datetime.datetime.strptime( ((datetime.datetime.now() - datetime.timedelta(1)).strftime('%Y-%m-%d')), '%Y-%m-%d' )
@@ -288,7 +281,6 @@ def main():
       print ('\n'.join(bitbar_header))
 
     issues2 = jira.search_issues('assignee was in (currentuser()) and updatedDate < endOfDay() AND updatedDate > -1d ORDER BY updatedDate DESC, created ASC',fields=['key', 'project', 'timeSpent', 'worklog'], maxResults=30)
-    # issues2 = jira.search_issues('assignee was in (currentuser()) and updatedDate >= startOfDay() and updatedDate < endOfDay() ORDER BY updatedDate DESC, created ASC',fields=['key', 'project', 'timeSpent', 'worklog'], maxResults=30)
     if(len(issues2) > 0):
       get_time_spent_by_day(issues2)
 
