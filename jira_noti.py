@@ -15,6 +15,7 @@ import re
 import datetime
 import time
 import os
+import json
 
 bitbar_header = ['BB', '---']
 # As some above have stated, using an API token will work (for JIRA Cloud).
@@ -199,7 +200,7 @@ def get_in_progress_item(issues):
 
   ###############################################################################
   content = '\n'.join(bitbar_header)
-  print (content)
+  print(content)
   
   with open(CACHE_FILE, "w+") as f:
     f.write(content)
@@ -208,6 +209,71 @@ def get_in_progress_item(issues):
     f.write(time.ctime())
     f.close()
 
+  return (content)
+
+
+def getParsedIssues():
+  log = logging.getLogger(__name__)
+  jira = connect_jira(log, SERVER, USER, PASSW)
+  log = ""
+  if ( jira is not None):
+    issues = jira.search_issues(assignee)
+    if(len(issues) > 0):
+      log = get_in_progress_item(issues)
+    else:
+      bitbar_header = ['No jira issue', '---', 'Connection error?']
+      log = ('\n'.join(bitbar_header))
+
+    issues2 = jira.search_issues('assignee was in (currentuser()) and updatedDate < endOfDay() AND updatedDate > -1d ORDER BY updatedDate DESC, created ASC',fields=['key', 'project', 'timeSpent', 'worklog'], maxResults=30)
+    # issues2 = jira.search_issues('assignee was in (currentuser()) and updatedDate >= startOfDay() and updatedDate < endOfDay() ORDER BY updatedDate DESC, created ASC',fields=['key', 'project', 'timeSpent', 'worklog'], maxResults=30)
+    if(len(issues2) > 0):
+      log = log + get_time_spent_by_day(issues2)
+  return log
+
+def get_time_spent_by_day(issues):
+  i = 0
+  today_time_spent = []
+  today_time_spent.append("%s" % ('--'))
+  today_time_spent.append("%s" % ('Today logged:'))
+  today_time_spent.append("%s" % ('--'))
+
+  yesterday_time_spent = []
+  yesterday_time_spent.append("%s" % ('--'))
+  yesterday_time_spent.append("%s" % ('Yesterday logged:'))
+  yesterday_time_spent.append("%s" % ('--'))
+  for issue in issues:
+    # print(issue)
+    log_entry_count = len(issue.fields.worklog.worklogs)
+    # print( issue.key, issue.fields.project, issue.fields.worklog.worklogs[i].timeSpent, 
+    #     issue.fields.worklog.worklogs[i].updated, issue.fields.worklog.worklogs[i].updateAuthor)
+    for i in range(log_entry_count):
+      issue_strd = issue.fields.worklog.worklogs[i].updated
+      issue_strd = issue_strd[0:issue_strd.find("+")]
+      # print(issue_strd)
+      issue_d = datetime.datetime.strptime(issue_strd, '%Y-%m-%dT%H:%M:%S.%f')
+
+      comment=''
+      if hasattr(issue.fields.worklog.worklogs[i], 'comment'):
+        comment = issue.fields.worklog.worklogs[i].comment
+      status = "[" + str(issue.fields.worklog.worklogs[i].updateAuthor) + "] " + str(issue.key) + " :: " + str(issue.fields.worklog.worklogs[i].timeSpent) + " - " + str(comment)
+
+      if(len(status) > TICKETLENGTH):
+        status = status[0:TICKETLENGTH] + '..'
+      else:
+        status = status[0:TICKETLENGTH]
+      status = status + " | href=https://cae-hc.atlassian.net/browse/" + str(issue.key)
+      if(issue_d.day == datetime.date.today().day):
+        # print( issue.key, issue.fields.project, issue.fields.worklog.worklogs[i].timeSpent, 
+        #   issue.fields.worklog.worklogs[i].updated, issue.fields.worklog.worklogs[i].updateAuthor)
+        today_time_spent.append("%s" % (status))
+
+      yesterday_d = datetime.datetime.strptime( ((datetime.datetime.now() - datetime.timedelta(1)).strftime('%Y-%m-%d')), '%Y-%m-%d' )
+      if(issue_d.day == yesterday_d.day):
+        yesterday_time_spent.append("%s" % (status))
+    # return
+  content = '\n'.join(today_time_spent) + '\n'.join(yesterday_time_spent)
+  print(content)
+  return (content)
 
 def main():
 
@@ -220,6 +286,12 @@ def main():
     else:
       bitbar_header = ['No jira issue', '---', 'Connection error?']
       print ('\n'.join(bitbar_header))
+
+    issues2 = jira.search_issues('assignee was in (currentuser()) and updatedDate < endOfDay() AND updatedDate > -1d ORDER BY updatedDate DESC, created ASC',fields=['key', 'project', 'timeSpent', 'worklog'], maxResults=30)
+    # issues2 = jira.search_issues('assignee was in (currentuser()) and updatedDate >= startOfDay() and updatedDate < endOfDay() ORDER BY updatedDate DESC, created ASC',fields=['key', 'project', 'timeSpent', 'worklog'], maxResults=30)
+    if(len(issues2) > 0):
+      get_time_spent_by_day(issues2)
+
   else:
     
     stored_issues=""
@@ -231,5 +303,5 @@ def main():
       bitbar_header = ['No jira issue (no cache)', '---', 'Connection error!!']
       print ('\n'.join(bitbar_header))
    
-
 main()
+
