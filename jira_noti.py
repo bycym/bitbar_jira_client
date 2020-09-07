@@ -111,8 +111,9 @@ def get_in_progress_item(issues):
         fieldIndex = 0
         if(len(issue.fields.customfield_10007) > 1):
           fieldIndex = 1
-        if (issue.raw['fields']["customfield_10007"] and issue.raw['fields']["customfield_10007"][0]):
-          sprintName = re.search('name=(.+?),', str(issue.raw['fields']["customfield_10007"][0])).group(1)
+        # get sprint name
+        if (issue.raw['fields']["customfield_10007"] and issue.raw['fields']["customfield_10007"][0]['name']):
+          sprintName = issue.raw['fields']["customfield_10007"][0]['name']
         if(sprintName != ''):
           mySprints[sprintName] = []
 
@@ -134,7 +135,7 @@ def get_in_progress_item(issues):
       if(len(element.fields.customfield_10007) > 1):
         fieldIndex = 1
       try:
-        sprintName = re.search('name=(.+?),', str(element.raw['fields']["customfield_10007"][0])).group(1)
+        sprintName = element.raw['fields']["customfield_10007"][0]['name']
       except AttributeError:
         sprintName = ''
 
