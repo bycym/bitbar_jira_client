@@ -146,7 +146,7 @@ def get_in_progress_item(issues):
       status = status[0:TICKETLENGTH] + '..'
     else:
       status = status[0:TICKETLENGTH]
-    status = status + " | href=" + server + "/browse/" + str(element.key)
+    status = status + " | href=" + SERVER + "/browse/" + str(element.key)
     # coloring
     if(COLORING):
       status = status + str(priorityColorCoding(element.fields.priority))
@@ -257,7 +257,7 @@ def get_time_spent_by_day(issues):
         status = status[0:TICKETLENGTH] + '..'
       else:
         status = status[0:TICKETLENGTH]
-      status = status + " | href=" + server + "/browse/" + str(element.key)
+      status = status + " | href=" + SERVER + "/browse/" + str(element.key)
       if(issue_d.day == datetime.date.today().day):
         today_time_spent.append("%s" % (status))
 
