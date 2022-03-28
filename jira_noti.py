@@ -28,12 +28,12 @@ SERVER="<jira_server>"
 assignee="assignee="+"currentuser()"
 TOPRECENT=10
 # Adjust title length of a ticket in status
-STATUSLENGTH=40
+STATUSLENGTH=30
 # Adjust title length of a ticket in dropdown menu
 TICKETLENGTH=80
 COLORING=True
 NONSPRINT='[Non sprint]'
-CACHE_FILE="jira_noti.cache"
+CACHE_FILE="not/jira_noti.cache"
 TIME_OUT=3
 
 ### CUSTOM SECTION ###
@@ -41,9 +41,14 @@ def add_custom_header(header):
   ## Custom header link >>>>>
   # example:
   # example = '<name of the link> | href=' + SERVER + '<link of board or whatelse on the server>'
-  kanban = 'My board | href=' + SERVER + '/secure/RapidBoard.jspa?rapidView=28'
+  kanban = 'Sprint board | href=' + SERVER + '/jira/software/c/projects/DEV/boards/4'
   # append to the header
   header.append("%s" % (kanban))
+
+  kanban = 'Kanban board | href=' + SERVER + '/jira/software/c/projects/DP/boards/79'
+  # append to the header
+  header.append("%s" % (kanban))
+
   ## <<<<< Custom header link
 
 # color option for the priority
@@ -104,16 +109,16 @@ def get_in_progress_item(issues):
 
   # filter out Closed or Blocked items
   for issue in issues:
-    if (str(issue.fields.status) not in ('Closed', 'Blocked')):
+    if (str(issue.fields.status) not in ('Closed', 'Blocked', 'Done', 'QA')):
       myIssues.append(issue);
       sprintName = ''
-      if(issue.fields.customfield_10007):
+      if(issue.fields.customfield_10004):
         fieldIndex = 0
-        if(len(issue.fields.customfield_10007) > 1):
+        if(len(issue.fields.customfield_10004) > 1):
           fieldIndex = 1
         # get sprint name
-        if (issue.raw['fields']["customfield_10007"] and issue.raw['fields']["customfield_10007"][0]['name']):
-          sprintName = issue.raw['fields']["customfield_10007"][0]['name']
+        if (issue.raw['fields']["customfield_10004"] and issue.raw['fields']["customfield_10004"][0]['name']):
+          sprintName = issue.raw['fields']["customfield_10004"][0]['name']
         if(sprintName != ''):
           mySprints[sprintName] = []
 
@@ -130,12 +135,12 @@ def get_in_progress_item(issues):
   for element in myIssues:
     status=""
     sprintName = ''
-    if(element.fields.customfield_10007):
+    if(element.fields.customfield_10004):
       fieldIndex = 0
-      if(len(element.fields.customfield_10007) > 1):
+      if(len(element.fields.customfield_10004) > 1):
         fieldIndex = 1
       try:
-        sprintName = element.raw['fields']["customfield_10007"][0]['name']
+        sprintName = element.raw['fields']["customfield_10004"][0]['name']
       except AttributeError:
         sprintName = ''
 
@@ -162,8 +167,8 @@ def get_in_progress_item(issues):
     if(i < TOPRECENT):
       bitbar_header.append("%s" % (status))
 
-    if (str(element.fields.status) not in ('Open', 'New', 'Code Review', 'Prepare Testing')):
-      top_status_bar = str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
+    if (str(element.fields.status) not in ('To Do', 'Open', 'New', 'Review', 'Prepare Testing', 'Integration', 'QA', 'Waiting')):
+      top_status_bar = str(element.key) + " :: " + str(element.fields.summary)
       if(len(top_status_bar) > STATUSLENGTH):
         top_status_bar = top_status_bar[0:STATUSLENGTH] + '..'
 
@@ -269,32 +274,44 @@ def get_time_spent_by_day(issues):
   print(content)
   return (content)
 
+def fallback():
+  stored_issues=""
+  with open(CACHE_FILE, "r") as f:
+    stored_issues = f.read()
+  if(len(stored_issues) > 0):
+    print(stored_issues)
+  else:
+    bitbar_header = ['No jira issue (no cache)', '---', 'Connection error!!']
+    print ('\n'.join(bitbar_header))  
+
 def main():
 
   log = logging.getLogger(__name__)
   jira = connect_jira(log, SERVER, USER, PASSW)
   if ( jira is not None):
-    issues = jira.search_issues(assignee)
+    issues = []
+    try:
+      issues = jira.search_issues(assignee)
+    except Exception as e:
+      fallback()
+
     if(len(issues) > 0):
       get_in_progress_item(issues)
     else:
       bitbar_header = ['No jira issue', '---', 'Connection error?']
       print ('\n'.join(bitbar_header))
 
-    issues2 = jira.search_issues('assignee was in (currentuser()) and updatedDate < endOfDay() AND updatedDate > -1d ORDER BY updatedDate DESC, created ASC',fields=['key', 'project', 'timeSpent', 'worklog'], maxResults=30)
+    issues2 = []
+    try:
+      issues2 = jira.search_issues('assignee was in (currentuser()) and updatedDate < endOfDay() AND updatedDate > -1d ORDER BY updatedDate DESC, created ASC',fields=['key', 'project', 'timeSpent', 'worklog'], maxResults=30)
+    except Exception as e:
+      issues2 = []
     if(len(issues2) > 0):
       get_time_spent_by_day(issues2)
 
   else:
-    
-    stored_issues=""
-    with open(CACHE_FILE, "r") as f:
-      stored_issues = f.read()
-    if(len(stored_issues) > 0):
-      print(stored_issues)
-    else:
-      bitbar_header = ['No jira issue (no cache)', '---', 'Connection error!!']
-      print ('\n'.join(bitbar_header))
+    fallback()
+
    
 main()
 
