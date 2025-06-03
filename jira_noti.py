@@ -44,6 +44,8 @@ def add_custom_header(header):
   kanban = 'My board | href=' + SERVER + '/secure/RapidBoard.jspa?rapidView=28'
   # append to the header
   header.append("%s" % (kanban))
+  refresh = "Refresh... | refresh=true"
+  header.append("%s" % (refresh))
   ## <<<<< Custom header link
 
 # color option for the priority
@@ -105,15 +107,18 @@ def get_in_progress_item(issues):
   # filter out Closed or Blocked items
   for issue in issues:
     if (str(issue.fields.status) not in ('Closed', 'Blocked', 'Done', 'QA')):
+      issue.fields.summary = issue.fields.summary.replace("|","::")
       myIssues.append(issue);
       sprintName = ''
       if(issue.fields.customfield_10004):
         fieldIndex = 0
-        if(len(issue.fields.customfield_10004) > 1):
-          fieldIndex = 1
+        # TODO: 
+        # if(len(issue.fields.customfield_10004) > 1):
+        # if(issue.fields.customfield_10004 > 1):
+        #  fieldIndex = 1
         # get sprint name
-        if (issue.raw['fields']["customfield_10004"] and issue.raw['fields']["customfield_10004"][0]['name']):
-          sprintName = issue.raw['fields']["customfield_10004"][0]['name']
+        # if (issue.raw['fields']["customfield_10004"] and issue.raw['fields']["customfield_10004"][0]['name']):
+        #   sprintName = issue.raw['fields']["customfield_10004"][0]['name']
         if(sprintName != ''):
           mySprints[sprintName] = []
 
@@ -132,12 +137,14 @@ def get_in_progress_item(issues):
     sprintName = ''
     if(element.fields.customfield_10004):
       fieldIndex = 0
-      if(len(element.fields.customfield_10004) > 1):
-        fieldIndex = 1
-      try:
-        sprintName = element.raw['fields']["customfield_10004"][0]['name']
-      except AttributeError:
-        sprintName = ''
+      # TODO: 
+      # if(len(issue.fields.customfield_10004) > 1):
+      #if(issue.fields.customfield_10004 > 1):
+      #  fieldIndex = 1
+      # try:
+      #   sprintName = element.raw['fields']["customfield_10004"][0]['name']
+      # except AttributeError:
+      #   sprintName = ''
 
     # Create ticket with sprint name if it exsist
     # <ID>(<status>) :: <Title>
@@ -197,6 +204,9 @@ def get_in_progress_item(issues):
  
   if(bitbar_header[0] == ''):
     bitbar_header[0] = '(-) :: No "In progress" ticket'
+
+  # Ammount of assigned tickets
+  bitbar_header[0] = f"({len(myIssues)}) ~ {bitbar_header[0]}"
 
 
   ###############################################################################
