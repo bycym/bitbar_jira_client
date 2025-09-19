@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 # <bitbar.title>Jira status</bitbar.title>
@@ -8,14 +8,11 @@
 # <bitbar.desc>Displays Open jira tickets.</bitbar.desc>
 # <bitbar.dependencies>python</bitbar.dependencies>
 
-from collections import Counter
-from jira.client import JIRA
+import requests
+import base64
 import logging
-import re
 import datetime
 import time
-import os
-import json
 
 bitbar_header = ['BB', '---']
 # As some above have stated, using an API token will work (for JIRA Cloud).
@@ -28,7 +25,7 @@ SERVER="<jira_server>"
 assignee="assignee="+"currentuser()"
 TOPRECENT=10
 # Adjust title length of a ticket in status
-STATUSLENGTH=30
+STATUSLENGTH=20
 # Adjust title length of a ticket in dropdown menu
 TICKETLENGTH=80
 COLORING=True
@@ -52,33 +49,120 @@ def add_custom_header(header):
 def priorityColorCoding(priority):
   priorityColor = " color="
   if(str(priority) == "Blocker"):
-    priorityColor = priorityColor + "#cc3300"
+    priorityColor = priorityColor + "#ff4000"
   elif (str(priority) == "Critical"):
-    priorityColor = priorityColor + "#ff9999"
+    priorityColor = priorityColor + "#ff5d5d"
   elif (str(priority) == "Major"):
-    priorityColor = priorityColor + "#ff0000"
+    priorityColor = priorityColor + "#ff8d8d"
   elif (str(priority) == "Minor"):
-    priorityColor = priorityColor + "#808080"
-  elif (str(priority) == "Trivial"):
-    priorityColor = priorityColor + "#808080"
+    priorityColor = priorityColor + "#FFC7C7"
   else:
-    priorityColor = ""
+    priorityColor = priorityColor + "#000000"
   return priorityColor
 
 ### END OF THE CUSTOM SECTION ###
 
 
-# Defines a function for connecting to Jira
-def connect_jira(log, jira_server, jira_user, jira_password):
+# Defines a function for connecting to Jira using REST API v3
+def create_jira_session(jira_server, jira_user, jira_password):
   try:
-    log.info("Connecting to JIRA: %s" % jira_server)
-    jira_options = {'server': jira_server}
-    jira = JIRA(timeout=TIME_OUT, options=jira_options, basic_auth=(jira_user, jira_password), max_retries=0)
-    return jira
-
+    session = requests.Session()
+    # Create basic auth header
+    credentials = f"{jira_user}:{jira_password}"
+    encoded_credentials = base64.b64encode(credentials.encode()).decode()
+    session.headers.update({
+        'Authorization': f'Basic {encoded_credentials}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    })
+    session.timeout = TIME_OUT
+    return session, jira_server
   except Exception as e:
-    log.error("Failed to connect to JIRA: %s" % e)
+    logging.error("Failed to create JIRA session: %s" % e)
+    return None, None
+
+# Search issues using REST API v3
+def search_issues_v3(session, server, jql, fields=None, max_results=50):
+  try:
+    url = f"{server}/rest/api/3/search/jql"
+    params = {
+        'jql': jql,
+        'maxResults': max_results,
+        'startAt': 0,
+        'fields': 'key,summary,status,updated,priority,customfield_10004,worklog,sprint'
+    }
+    
+    if fields:
+        params['fields'] = ','.join(fields)
+    
+    response = session.get(url, params=params)
+    response.raise_for_status()
+    
+    data = response.json()
+    return JiraSearchResult(data)
+    
+  except Exception as e:
+    logging.error(f"Failed to search issues: {e}")
     return None
+
+# Helper class to mimic the old JIRA client structure
+class JiraSearchResult:
+    def __init__(self, data):
+        self.issues = [JiraIssue(issue) for issue in data.get('issues', [])]
+    
+    def __len__(self):
+        return len(self.issues)
+    
+    def __iter__(self):
+        return iter(self.issues)
+
+class JiraIssue:
+    def __init__(self, issue_data):
+        self.key = issue_data.get('key')
+        self.raw = issue_data
+        self.fields = JiraFields(issue_data.get('fields', {}))
+
+class JiraFields:
+    def __init__(self, fields_data):
+        self.status = JiraStatus(fields_data.get('status', {}))
+        self.summary = fields_data.get('summary', '')
+        self.updated = fields_data.get('updated', '')
+        self.priority = JiraPriority(fields_data.get('priority', {}))
+        self.customfield_10004 = fields_data.get('customfield_10004')  # Sprint field
+        self.worklog = JiraWorklog(fields_data.get('worklog', {}))
+        self.sprint = fields_data.get('sprint', '')
+        
+class JiraStatus:
+    def __init__(self, status_data):
+        self.name = status_data.get('name', '')
+    
+    def __str__(self):
+        return self.name
+
+class JiraPriority:
+    def __init__(self, priority_data):
+        self.name = priority_data.get('name', '')
+    
+    def __str__(self):
+        return self.name
+
+class JiraWorklog:
+    def __init__(self, worklog_data):
+        self.worklogs = [JiraWorklogEntry(wl) for wl in worklog_data.get('worklogs', [])]
+
+class JiraWorklogEntry:
+    def __init__(self, worklog_data):
+        self.updated = worklog_data.get('updated', '')
+        self.timeSpent = worklog_data.get('timeSpent', '')
+        self.comment = worklog_data.get('comment', '')
+        self.updateAuthor = JiraAuthor(worklog_data.get('updateAuthor', {}))
+
+class JiraAuthor:
+    def __init__(self, author_data):
+        self.displayName = author_data.get('displayName', '')
+    
+    def __str__(self):
+        return self.displayName
 
 # Get bitbar status
 def get_in_progress_item(issues):
@@ -106,21 +190,12 @@ def get_in_progress_item(issues):
 
   # filter out Closed or Blocked items
   for issue in issues:
-    if (str(issue.fields.status) not in ('Closed', 'Blocked', 'Done', 'QA')):
+    if (str(issue.fields.status) not in ('Closed', 'Blocked', 'Done', 'QA', 'Resolved', 'Needs Info')):
       issue.fields.summary = issue.fields.summary.replace("|","::")
       myIssues.append(issue);
-      sprintName = ''
-      if(issue.fields.customfield_10004):
-        fieldIndex = 0
-        # TODO: 
-        # if(len(issue.fields.customfield_10004) > 1):
-        # if(issue.fields.customfield_10004 > 1):
-        #  fieldIndex = 1
-        # get sprint name
-        # if (issue.raw['fields']["customfield_10004"] and issue.raw['fields']["customfield_10004"][0]['name']):
-        #   sprintName = issue.raw['fields']["customfield_10004"][0]['name']
-        if(sprintName != ''):
-          mySprints[sprintName] = []
+      sprintName = issue.fields.sprint
+      if(sprintName != ''):
+        mySprints[sprintName] = []
 
   myIssues.sort(key=lambda x: x.fields.updated, reverse=True)
   
@@ -134,17 +209,7 @@ def get_in_progress_item(issues):
   i = 0
   for element in myIssues:
     status=""
-    sprintName = ''
-    if(element.fields.customfield_10004):
-      fieldIndex = 0
-      # TODO: 
-      # if(len(issue.fields.customfield_10004) > 1):
-      #if(issue.fields.customfield_10004 > 1):
-      #  fieldIndex = 1
-      # try:
-      #   sprintName = element.raw['fields']["customfield_10004"][0]['name']
-      # except AttributeError:
-      #   sprintName = ''
+    sprintName = element.fields.sprint
 
     # Create ticket with sprint name if it exsist
     # <ID>(<status>) :: <Title>
@@ -205,7 +270,7 @@ def get_in_progress_item(issues):
   if(bitbar_header[0] == ''):
     bitbar_header[0] = '(-) :: No "In progress" ticket'
 
-  # Ammount of assigned tickets
+  # Assigned tichets
   bitbar_header[0] = f"({len(myIssues)}) ~ {bitbar_header[0]}"
 
 
@@ -222,23 +287,6 @@ def get_in_progress_item(issues):
 
   return (content)
 
-
-def getParsedIssues():
-  log = logging.getLogger(__name__)
-  jira = connect_jira(log, SERVER, USER, PASSW)
-  log = ""
-  if ( jira is not None):
-    issues = jira.search_issues(assignee)
-    if(len(issues) > 0):
-      log = get_in_progress_item(issues)
-    else:
-      bitbar_header = ['No jira issue', '---', 'Connection error?']
-      log = ('\n'.join(bitbar_header))
-
-    issues2 = jira.search_issues('assignee was in (currentuser()) and updatedDate < endOfDay() AND updatedDate > -1d ORDER BY updatedDate DESC, created ASC',fields=['key', 'project', 'timeSpent', 'worklog'], maxResults=30)
-    if(len(issues2) > 0):
-      log = log + get_time_spent_by_day(issues2)
-  return log
 
 def get_time_spent_by_day(issues):
   i = 0
@@ -292,11 +340,12 @@ def fallback():
 def main():
 
   log = logging.getLogger(__name__)
-  jira = connect_jira(log, SERVER, USER, PASSW)
-  if ( jira is not None):
+  session, server = create_jira_session(SERVER, USER, PASSW)
+  if (session is not None):
     issues = []
     try:
-      issues = jira.search_issues(assignee)
+      issues_result = search_issues_v3(session, server, assignee)
+      issues = issues_result.issues if issues_result else []
     except Exception as e:
       fallback()
 
@@ -308,8 +357,10 @@ def main():
 
     issues2 = []
     try:
-      issues2 = jira.search_issues('assignee was in (currentuser()) and updatedDate < endOfDay() AND updatedDate > -1d ORDER BY updatedDate DESC, created ASC',fields=['key', 'project', 'timeSpent', 'worklog'], maxResults=30)
+      issues2_result = search_issues_v3(session, server, 'assignee was in (currentuser()) and updatedDate < endOfDay() AND updatedDate > -1d ORDER BY updatedDate DESC, created ASC', fields=['key', 'project', 'timeSpent', 'worklog'], max_results=30)
+      issues2 = issues2_result.issues if issues2_result else []
     except Exception as e:
+      print(e)
       issues2 = []
     if(len(issues2) > 0):
       get_time_spent_by_day(issues2)
