@@ -62,7 +62,6 @@ def priorityColorCoding(priority):
 
 ### END OF THE CUSTOM SECTION ###
 
-
 # Defines a function for connecting to Jira using REST API v3
 def create_jira_session(jira_server, jira_user, jira_password):
   try:
@@ -84,12 +83,14 @@ def create_jira_session(jira_server, jira_user, jira_password):
 # Search issues using REST API v3
 def search_issues_v3(session, server, jql, fields=None, max_results=50):
   try:
+    # Ensure server doesn't have trailing slash for consistent URLs
+    server = server.rstrip('/')
     url = f"{server}/rest/api/3/search/jql"
     params = {
         'jql': jql,
         'maxResults': max_results,
         'startAt': 0,
-        'fields': 'key,summary,status,updated,priority,customfield_10004,worklog,sprint'
+        'fields': 'key,summary,status,updated,priority,customfield_10007'
     }
     
     if fields:
@@ -129,7 +130,6 @@ class JiraFields:
         self.updated = fields_data.get('updated', '')
         self.priority = JiraPriority(fields_data.get('priority', {}))
         self.customfield_10004 = fields_data.get('customfield_10004')  # Sprint field
-        self.worklog = JiraWorklog(fields_data.get('worklog', {}))
         self.sprint = fields_data.get('sprint', '')
         
 class JiraStatus:
@@ -183,7 +183,7 @@ def get_in_progress_item(issues):
   ## dashboard link
   dashboard = 'Dashboard | href=' + SERVER + '/secure/Dashboard.jspa'
   bitbar_header.append("%s" % (dashboard))
-  ## add more custom link
+  ## add more custom link
   add_custom_header(bitbar_header)
 
   ###############################################################################
@@ -211,7 +211,7 @@ def get_in_progress_item(issues):
     status=""
     sprintName = element.fields.sprint
 
-    # Create ticket with sprint name if it exsist
+    # Create ticket with sprint name if it exsist
     # <ID>(<status>) :: <Title>
     status = status + str(element.key) + "(" + str(element.fields.status) + ") :: " + str(element.fields.summary)
     if(len(status) > TICKETLENGTH):
@@ -287,46 +287,6 @@ def get_in_progress_item(issues):
 
   return (content)
 
-
-def get_time_spent_by_day(issues):
-  i = 0
-  today_time_spent = []
-  today_time_spent.append("%s" % ('--'))
-  today_time_spent.append("%s" % ('Today logged:'))
-  today_time_spent.append("%s" % ('--'))
-
-  yesterday_time_spent = []
-  yesterday_time_spent.append("%s" % ('--'))
-  yesterday_time_spent.append("%s" % ('Yesterday logged:'))
-  yesterday_time_spent.append("%s" % ('--'))
-  for issue in issues:
-    log_entry_count = len(issue.fields.worklog.worklogs)
-    for i in range(log_entry_count):
-      issue_strd = issue.fields.worklog.worklogs[i].updated
-      issue_strd = issue_strd[0:issue_strd.find("+")]
-      issue_d = datetime.datetime.strptime(issue_strd, '%Y-%m-%dT%H:%M:%S.%f')
-
-      comment=''
-      if hasattr(issue.fields.worklog.worklogs[i], 'comment'):
-        comment = issue.fields.worklog.worklogs[i].comment
-      status = "[" + str(issue.fields.worklog.worklogs[i].updateAuthor) + "] " + str(issue.key) + " :: " + str(issue.fields.worklog.worklogs[i].timeSpent) + " - " + str(comment)
-
-      if(len(status) > TICKETLENGTH):
-        status = status[0:TICKETLENGTH] + '..'
-      else:
-        status = status[0:TICKETLENGTH]
-      status = status + " | href=" + SERVER + "/browse/" + str(element.key)
-      if(issue_d.day == datetime.date.today().day):
-        today_time_spent.append("%s" % (status))
-
-      yesterday_d = datetime.datetime.strptime( ((datetime.datetime.now() - datetime.timedelta(1)).strftime('%Y-%m-%d')), '%Y-%m-%d' )
-      if(issue_d.day == yesterday_d.day):
-        yesterday_time_spent.append("%s" % (status))
-    # return
-  content = '\n'.join(today_time_spent) + '\n'.join(yesterday_time_spent)
-  print(content)
-  return (content)
-
 def fallback():
   stored_issues=""
   with open(CACHE_FILE, "r") as f:
@@ -339,7 +299,6 @@ def fallback():
 
 def main():
 
-  log = logging.getLogger(__name__)
   session, server = create_jira_session(SERVER, USER, PASSW)
   if (session is not None):
     issues = []
@@ -355,19 +314,8 @@ def main():
       bitbar_header = ['No jira issue', '---', 'Connection error?']
       print ('\n'.join(bitbar_header))
 
-    issues2 = []
-    try:
-      issues2_result = search_issues_v3(session, server, 'assignee was in (currentuser()) and updatedDate < endOfDay() AND updatedDate > -1d ORDER BY updatedDate DESC, created ASC', fields=['key', 'project', 'timeSpent', 'worklog'], max_results=30)
-      issues2 = issues2_result.issues if issues2_result else []
-    except Exception as e:
-      print(e)
-      issues2 = []
-    if(len(issues2) > 0):
-      get_time_spent_by_day(issues2)
-
   else:
     fallback()
 
    
 main()
-
