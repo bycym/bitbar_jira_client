@@ -90,7 +90,7 @@ def search_issues_v3(session, server, jql, fields=None, max_results=50):
         'jql': jql,
         'maxResults': max_results,
         'startAt': 0,
-        'fields': 'key,summary,status,updated,priority,customfield_10007'
+        'fields': 'key,summary,status,updated,priority,customfield_10004'
     }
     
     if fields:
@@ -292,21 +292,21 @@ def fallback():
   with open(CACHE_FILE, "r") as f:
     stored_issues = f.read()
   if(len(stored_issues) > 0):
-    print(stored_issues)
+    print("💀"+stored_issues)
   else:
     bitbar_header = ['No jira issue (no cache)', '---', 'Connection error!!']
     print ('\n'.join(bitbar_header))  
+  exit()
 
 def main():
 
   session, server = create_jira_session(SERVER, USER, PASSW)
   if (session is not None):
     issues = []
-    try:
-      issues_result = search_issues_v3(session, server, assignee)
-      issues = issues_result.issues if issues_result else []
-    except Exception as e:
+    issues_result = search_issues_v3(session, server, assignee)
+    if issues_result is None:
       fallback()
+    issues = issues_result.issues
 
     if(len(issues) > 0):
       get_in_progress_item(issues)
