@@ -164,8 +164,64 @@ class JiraAuthor:
     def __str__(self):
         return self.displayName
 
+# Calculate story points for completed issues in last 30 days
+def calculate_average_storypoints(session, server, return_type='total'):
+  """
+  Fetches completed issues from the last 30 days and calculates 
+  the total or average story points, excluding Initiative, Epic, and Project types.
+  
+  Args:
+    session: Jira session object
+    server: Jira server URL
+    return_type: 'total' for sum or 'average' for avg. Default: 'total'
+  
+  Matches the SQL query logic:
+  - Last 30 days (not 90)
+  - Excludes Initiative, Epic, Project issue types
+  - Only resolved/completed issues
+  - Returns SUM or AVG of story points
+  
+  Returns:
+    float: Total or average story points (rounded to 2 decimals for average), or 0 if calculation fails
+  """
+  try:
+    # Query for completed issues in the last 30 days, excluding Initiative, Epic, and Project
+    completed_jql = f"{assignee} AND status in (Done, Closed, Resolved) AND resolutiondate >= -30d AND type NOT IN (Initiative, Epic, Project) ORDER BY resolutiondate DESC"
+    completed_issues = search_issues_v3(session, server, completed_jql, max_results=100)
+    
+    if completed_issues and len(completed_issues) > 0:
+      total_story_points = 0
+      issue_count = 0
+      
+      for issue in completed_issues:
+        # Story points are typically in customfield_10005, but can vary
+        # Try customfield_10005 first (common for story points)
+        story_points = issue.raw.get('fields', {}).get('customfield_10005')
+        
+        # If not found, try customfield_10004 
+        if story_points is None:
+          story_points = issue.raw.get('fields', {}).get('customfield_10004')
+        
+        if story_points is not None and isinstance(story_points, (int, float)):
+          total_story_points += story_points
+          issue_count += 1
+      
+      if issue_count > 0:
+        if return_type == 'average':
+          # Return average rounded to 2 decimals (matching SQL ROUND(AVG(...), 2))
+          return round(total_story_points / issue_count, 2)
+        else:
+          # Return total story points (matching SQL SUM(...))
+          return total_story_points
+    
+    return 0
+    
+  except Exception as e:
+    logging.error(f"Failed to calculate story points: {e}")
+    return 0
+
 # Get bitbar status
-def get_in_progress_item(issues):
+def get_in_progress_item(issues, session, server):
   myIssues=[]
   mySprints={}
   mySprints[NONSPRINT] = []
@@ -270,8 +326,15 @@ def get_in_progress_item(issues):
   if(bitbar_header[0] == ''):
     bitbar_header[0] = '(-) :: No "In progress" ticket'
 
+  # Calculate story points for last 30 days
+  # Use 'total' (default) for total points, or 'average' for average points
+  # Examples:
+  #   calculate_average_storypoints(session, server) - returns total (Ttl Pts)
+  #   calculate_average_storypoints(session, server, 'average') - returns average (Avg Pts)
+  average_storypoints_for_3_months = calculate_average_storypoints(session, server)
+
   # Assigned tichets
-  bitbar_header[0] = f"({len(myIssues)}) ~ {bitbar_header[0]}"
+  bitbar_header[0] = f"({average_storypoints_for_3_months}) ~ {bitbar_header[0]}"
 
 
   ###############################################################################
@@ -309,7 +372,7 @@ def main():
     issues = issues_result.issues
 
     if(len(issues) > 0):
-      get_in_progress_item(issues)
+      get_in_progress_item(issues, session, server)
     else:
       bitbar_header = ['No jira issue', '---', 'Connection error?']
       print ('\n'.join(bitbar_header))
