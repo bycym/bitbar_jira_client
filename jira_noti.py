@@ -22,7 +22,7 @@ bitbar_header = ['BB', '---']
 USER="<jira_user>@email"
 PASSW="<jira_api_token>"
 SERVER="<jira_server>"
-assignee="assignee="+"currentuser()"
+assignee='assignee=currentUser() and status NOT IN (Done, QA, Resolved, "Needs Info", "Accepted Risk", Closed, Blocked)'
 TOPRECENT=10
 # Adjust title length of a ticket in status
 STATUSLENGTH=20
